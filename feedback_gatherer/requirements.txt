@@ -1,0 +1,8 @@
+# Feedback Gatherer dependencies
+extract-msg>=0.55      # parse Outlook .msg (OLE) emails
+python-docx>=1.2       # parse .docx
+PyMuPDF>=1.27          # parse .pdf (imported as 'fitz')
+openpyxl>=3.1          # read/write .xlsx
+rapidfuzz>=3.14        # fuzzy company-name matching
+PyYAML>=6.0            # config.yaml
+streamlit>=1.58        # the "try-it" upload web app

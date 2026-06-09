@@ -1,0 +1,11 @@
+# Streamlit app configuration (applies locally and on Streamlit Community Cloud).
+[theme]
+primaryColor = "#1F4E78"
+base = "light"
+
+[server]
+# Uploaded files are processed in memory; cap the size to keep the demo light.
+maxUploadSize = 50
+
+[browser]
+gatherUsageStats = false

@@ -1,0 +1,155 @@
+# ---------------------------------------------------------------------------
+# Feedback Gatherer configuration
+# Tuned to the RNE 2025 Commercial Conditions consultation, but every path /
+# rule below is editable so the same engine can gather a future consultation.
+# Paths are relative to the repository root (the folder above feedback_gatherer/).
+# ---------------------------------------------------------------------------
+
+# Root of the consultation archive and the feedback subtree within it.
+data_root: "2025 CCs Guidelines review/1_Consultation/Feedbacks"
+
+# Authoritative respondent registry (classification + channel + FTE alignment).
+registry:
+  file: "2025 CCs Guidelines review/1_Consultation/Feedbacks/Overview_CCs Guidelines consultation results.xlsx"
+  sheet: "Splitted 2 - IMs clean"
+  header_row: 3          # 1-based row holding column names
+  first_data_row: 4
+  last_data_row: 28      # rows 29+ are blank/summary statistics, not respondents
+  columns:               # 0-based column indexes within the sheet
+    date: 1
+    classification: 2
+    company: 3
+    representative: 4
+    email: 5
+    msform: 6
+    mailbox: 7
+    same_as_fte: 8
+    partial_fte: 9
+    notes: 10
+
+# The single MS Form export that holds all web-form submissions in rows.
+# (The real filename contains a non-breaking space, so we resolve it by glob.)
+msform_export:
+  file_glob: "Public Consultation*1-31*.xlsx"
+  company_col: 8         # 0-based: "Company"
+  firstname_col: 6
+  lastname_col: 7
+  email_col: 9
+  date_col: 2            # completion time
+  first_section_col: 10  # columns 10..21 are the section-keyed answers
+  last_section_col: 21
+
+# Which top-level subfolder maps to which channel, and whether to ingest it.
+# Mirror/duplicate folders are marked ignore: true so they are skipped.
+channels:
+  - path: "Feedback MS Form"
+    channel: msform
+    ingest: false        # redundant with msform_export (same 31 submissions)
+    note: "MS Form e-mail notifications duplicate the xlsx export."
+  - path: "Feedbacks via cc mailbox"
+    channel: mailbox
+    ingest: true
+    recurse: false       # only the numbered top-level files here
+  - path: "Feedbacks via cc mailbox/Feedback mailbox"
+    channel: mailbox
+    ingest: false
+    note: "Mirror of the numbered top-level mailbox files."
+  - path: "Feedbacks via cc mailbox/mails"
+    channel: mailbox
+    ingest: false
+    note: "Cover e-mails for the attached documents."
+  - path: "other feedbacks"
+    channel: other
+    ingest: true
+    recurse: true
+
+# Files never ingested regardless of folder.
+ignore_globs:
+  - "*.zip"
+  - "*.mp4"
+  - "~$*"               # office lock files
+  - "image0*.jpg"       # inline e-mail signature images
+  - "image0*.png"
+
+# Respondents whose feedback "is the same as FTE" endorse the FTE response
+# rather than carrying independent content. We record the endorsement and do
+# not re-extract the (identical) document body.
+fte_respondent_id: "fte"
+same_as_fte_filename_markers:
+  - "same as fte"
+
+# Abbreviations / spelling variants -> canonical company in the registry. Used to
+# rescue filename-based matches that fuzzy matching alone would miss.
+company_aliases:
+  "RLE": "Rail Logistics Europe"
+  "Guterbahnen": "DIE GÜTERBAHNEN"
+  "Gueterbahnen": "DIE GÜTERBAHNEN"
+  "ALLRAIL": "Allrail"
+  "ITL": "ITL - Captrain"
+  "CCW": "CCW - Captrain Cargo West"
+  "UIC": "ECCO (UIC)"
+  "ASTOC": "Tågföretagen - ASTOC"
+
+# Force the respondent for files under a given path fragment (the 'other feedbacks'
+# editorial / Joint-Office documents are not named after a stakeholder).
+attribution:
+  - path_contains: "FTE editorial"
+    company: "FTE"
+  - path_contains: "RNE JO"
+    company: "RNE Joint Office"
+
+# ---------------------------------------------------------------------------
+# Guideline section taxonomy. `key` is the canonical section_ref; `aliases`
+# are matched (case-insensitive, punctuation-insensitive) against text labels
+# found in form columns and e-mail bodies that lack an explicit number.
+# ---------------------------------------------------------------------------
+sections:
+  - key: "1.1"
+    title: "Goal of Commercial Conditions"
+    aliases: ["goal of commercial conditions", "goal"]
+  - key: "1.2"
+    title: "Scope of the Guidelines"
+    aliases: ["geographical scope", "scope", "scope of the guidelines"]
+  - key: "1.3"
+    title: "Exclusions"
+    aliases: ["exclusions"]
+  - key: "1.4"
+    title: "Current Status of Commercial Conditions"
+    aliases: ["current status of commercial conditions", "current status"]
+  - key: "2.1"
+    title: "Multiannual Capacity (Framework Agreements and Rolling Planning)"
+    aliases: ["multiannual capacity", "framework agreement and rolling planning",
+              "framework agreements and rolling planning"]
+  - key: "2.2"
+    title: "Incentives for Applicants"
+    aliases: ["incentives for applicants"]
+  - key: "2.3"
+    title: "Incentives for IMs"
+    aliases: ["incentives for ims"]
+  - key: "2.4"
+    title: "Multinetwork Capacity"
+    aliases: ["multinetwork capacity"]
+  - key: "2.5"
+    title: "Other components for Applicants and IMs incentives"
+    aliases: ["other components for applicants and ims incentives", "other components"]
+  - key: "3.1"
+    title: "Project Timeline"
+    aliases: ["project timeline"]
+  - key: "3.2"
+    title: "Monitoring, IT tools and simulation phase"
+    aliases: ["monitoring, it tools and simulation phase", "monitoring it tools and simulation phase",
+              "monitoring", "it tools"]
+  - key: "general"
+    title: "General / other remarks"
+    aliases: ["general remarks", "general", "further comments", "my comments",
+              "general overview", "introduction"]
+
+# Rows in the MS Form export that are internal test submissions, not stakeholders.
+test_row_filters:
+  internal_domains: ["rne.eu", "rne.u"]   # RNE staff test rows (incl. a typo'd domain)
+  anonymous_email_values: ["anonymous"]
+  # rows whose company OR name is one of these are test submissions
+  test_company_values: ["test", "testing", "n/a", "xxx", "-", "asdf"]
+  test_name_values: ["test"]
+  # an answer is treated as gibberish (test) if it has no vowels and no spaces
+  gibberish_min_len: 4

@@ -1,0 +1,38 @@
+# ===========================================================================
+#  PRIVACY-CRITICAL: never publish the real consultation archive.
+#  The whole "2025 CCs Guidelines review" folder contains stakeholder names,
+#  e-mails and confidential feedback. It must NOT be pushed to GitHub.
+# ===========================================================================
+2025 CCs Guidelines review/
+**/2025 CCs Guidelines review/
+
+# Generated batch outputs (may contain real respondent data)
+feedback_gatherer/output/
+
+# Raw source document types that could carry personal data
+*.msg
+*.eml
+*.mp4
+*.zip
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+~$*
+.vscode/
+.idea/
+
+# --- Streamlit local secrets (never commit) ---
+.streamlit/secrets.toml
+
+# NOTE: feedback_gatherer/samples/ is intentionally NOT ignored — those are
+# synthetic dummy files meant to be published for testers.
