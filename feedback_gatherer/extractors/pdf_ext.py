@@ -15,7 +15,7 @@ import re
 
 import fitz  # PyMuPDF
 
-from .base import ParsedSource, RawItem, topic_items
+from .base import ParsedSource, RawItem, topic_items, outline_items
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.\w+")
 _HDR_LINE = re.compile(r"^\s*([1-3]\.\d(?:\.\d+)?)\s")
@@ -109,7 +109,16 @@ def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
                 raw_text=mt.group(0) + "\n" + body,
                 confidence="medium"))
 
-    # no guideline numbering: try the author's own topic headings ("➢ ...")
+    # no guideline numbering: try the author's outline ("1) Incentives for
+    # Applicants (Section 2.2)"), whose headings anchor to guideline chapters
+    if not ps.items:
+        outline = outline_items(full_text, cfg["sections"])
+        if outline:
+            ps.notes.append(f"Split on the document's own outline: {len(outline)} "
+                            "item(s) anchored to guideline chapters via the headings.")
+            ps.items.extend(outline)
+
+    # last structural resort: the author's topic headings ("➢ ...")
     if not ps.items:
         topics = topic_items(full_text)
         if topics:
