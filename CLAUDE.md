@@ -20,7 +20,7 @@ python feedback_gatherer/gather.py                  # options: --config <yaml> -
 streamlit run feedback_gatherer/app.py
 ```
 
-There is no test suite or linter. Verification is done by running the CLI and checking `feedback_gatherer/output/gather_report.md` (totals, needs-review list, dedup actions) against expectations — last known-good run: ~228 items / 29 respondents (placeholder answers like "vacat"/"-"/"no comments yet" are skipped and counted in the report).
+There is no test suite or linter. Verification is done by running the CLI and checking `feedback_gatherer/output/gather_report.md` (totals, needs-review list, dedup actions) against expectations — last known-good run: ~236 items / 29 respondents (placeholder answers like "vacat"/"-"/"no comments yet" are skipped and counted in the report).
 
 On Windows, prefix Python runs with `PYTHONIOENCODING=utf-8 PYTHONUTF8=1` (bash) — the data contains non-ASCII company names that crash cp1252 console output.
 

@@ -15,6 +15,12 @@ feedback_gatherer/output/
 *.mp4
 *.zip
 
+# Stray data files dropped at the repo root for testing (real stakeholder docs).
+# Synthetic samples live in feedback_gatherer/samples/ and stay committed.
+/*.pdf
+/*.docx
+/*.xlsx
+
 # --- Python ---
 __pycache__/
 *.py[cod]
