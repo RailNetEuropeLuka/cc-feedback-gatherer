@@ -1,18 +1,29 @@
-"""Extract .docx feedback in three shapes:
-  1. Table responses  - a table like  Paragraph | Considerations | Proposals  (Trenitalia).
+"""Extract .docx feedback in four shapes:
+  1. Table responses   - a table like  Paragraph | Considerations | Proposals  (Trenitalia).
   2. "same as FTE"     - identical template endorsing the FTE response; flagged, not re-parsed.
-  3. Prose             - section-numbered paragraphs, split on numbered headers.
+  3. Review markup     - Word comment balloons and tracked changes (insertions/deletions).
+                         python-docx ignores these, yet for reviewed copies of the
+                         Guidelines they ARE the feedback. Parsed from the raw XML.
+  4. Prose             - section-numbered paragraphs, split on numbered headers.
+
+If the file is an RNE-published copy of the Guidelines itself (letterhead markers
+from config), its body text is the *guideline* text - not feedback - so body-derived
+items are suppressed and only markup (3) is kept.
 """
 from __future__ import annotations
 
 import io
 import re
+import zipfile
+from xml.etree import ElementTree as ET
 
 import docx
 
 from .base import ParsedSource, RawItem
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.\w+")
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_HDR = re.compile(r"^\s*([1-3]\.\d(?:\.\d+)?)\s+\S")
 
 # header cell keywords that mark the three logical columns of a feedback table
 _PARA_KEYS = ("paragraph", "section", "chapter", "article", "ref")
@@ -39,6 +50,79 @@ def _classify_table(header_cells: list[str]) -> dict | None:
     return roles if "considerations" in roles else None
 
 
+# --------------------------------------------------------------- review markup
+def _para_text(p) -> str:
+    return "".join(t.text or "" for t in p.iter(f"{_W}t")).strip()
+
+
+def _markup_items(data: bytes) -> list[RawItem]:
+    """Word comments + tracked changes, with the guideline section each one sits in.
+
+    Walks word/document.xml paragraph-by-paragraph in document order, tracking the
+    last numbered section header seen, so every comment anchor and tracked change
+    can be tagged with its section.
+    """
+    z = zipfile.ZipFile(io.BytesIO(data))
+    names = z.namelist()
+
+    comments_by_id: dict[str, tuple[str, str]] = {}   # id -> (author, text)
+    if "word/comments.xml" in names:
+        croot = ET.fromstring(z.read("word/comments.xml"))
+        for c in croot.findall(f"{_W}comment"):
+            cid = c.get(f"{_W}id", "")
+            author = c.get(f"{_W}author", "")
+            text = " ".join(_para_text(p) for p in c.findall(f"{_W}p")).strip()
+            if text:
+                comments_by_id[cid] = (author, text)
+
+    items: list[RawItem] = []
+    root = ET.fromstring(z.read("word/document.xml"))
+    section = ""
+    for p in root.iter(f"{_W}p"):
+        ptext = _para_text(p)
+        if _HDR.match(ptext):
+            section = ptext[:90]
+
+        # comment anchors in this paragraph
+        for ref in p.iter(f"{_W}commentReference"):
+            cid = ref.get(f"{_W}id", "")
+            if cid in comments_by_id:
+                author, text = comments_by_id.pop(cid)
+                items.append(RawItem(
+                    section_raw=section or "general",
+                    considerations=text,
+                    raw_text=(f"Comment by {author or 'unknown'}"
+                              + (f' on: "{ptext[:250]}"' if ptext else "") + f" -> {text}"),
+                    confidence="medium" if section else "low"))
+
+        # tracked changes in this paragraph
+        ins = " ".join(t.text or "" for el in p.findall(f".//{_W}ins")
+                       for t in el.iter(f"{_W}t")).strip()
+        dele = " ".join(t.text or "" for el in p.findall(f".//{_W}del")
+                        for t in el.iter(f"{_W}delText")).strip()
+        if ins or dele:
+            change = []
+            if ins:
+                change.append(f'insert "{ins[:400]}"')
+            if dele:
+                change.append(f'delete "{dele[:400]}"')
+            items.append(RawItem(
+                section_raw=section or "general",
+                considerations=f"Tracked change in: {ptext[:250]}" if ptext
+                               else "Tracked change",
+                proposal=" / ".join(change),
+                raw_text=f"Tracked change ({' / '.join(change)})"
+                         + (f' in paragraph: "{ptext[:250]}"' if ptext else ""),
+                confidence="medium" if section else "low"))
+
+    # comments whose anchor was not found still carry feedback
+    for author, text in comments_by_id.values():
+        items.append(RawItem(section_raw="general", considerations=text,
+                             raw_text=f"Comment by {author or 'unknown'} -> {text}",
+                             confidence="low"))
+    return items
+
+
 def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
     doc = docx.Document(io.BytesIO(data))
     paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
@@ -62,8 +146,26 @@ def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
         ps.full_text = full_text
         return [ps]
 
+    # ---- (3) review markup: comments + tracked changes --------------------
+    try:
+        markup = _markup_items(data)
+    except Exception as exc:
+        markup = []
+        ps.notes.append(f"Could not parse review markup: {exc!r}")
+
+    head = full_text[:4000].lower()
+    if any(m.lower() in head for m in cfg.get("guidelines_doc_markers", [])):
+        # marked-up copy of the Guidelines: the body is guideline text, not feedback
+        ps.company_hint = None
+        ps.notes.append("Marked-up copy of the Guidelines: body text suppressed, "
+                        f"{len(markup)} comment(s)/tracked change(s) extracted as feedback.")
+        ps.items = markup
+        ps.full_text = full_text
+        if not markup:
+            ps.notes.append("No comments or tracked changes found in the Guidelines copy.")
+        return [ps]
+
     # ---- (1) feedback table ----------------------------------------------
-    parsed_any = False
     parts = []
     for t in doc.tables:
         if not t.rows:
@@ -86,11 +188,15 @@ def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
                                     proposal=(prop or None),
                                     raw_text=" | ".join(c for c in cells if c)))
             parts.append(f"### {section}\n{cons}" + (f"\nProposal: {prop}" if prop else ""))
-            parsed_any = True
 
-    # ---- (3) prose fallback ----------------------------------------------
-    if not parsed_any:
+    # ---- (4) prose fallback (only when neither tables nor markup matched) --
+    if not ps.items and not markup:
         _split_prose(full_text, ps)
+
+    if markup:
+        ps.notes.append(f"{len(markup)} comment(s)/tracked change(s) extracted "
+                        "in addition to the document text.")
+        ps.items.extend(markup)
 
     ps.full_text = "\n\n".join(parts) if parts else full_text
     if not ps.items:

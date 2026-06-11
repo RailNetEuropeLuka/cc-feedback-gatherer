@@ -79,7 +79,9 @@ same_as_fte_filename_markers:
   - "same as fte"
 
 # Abbreviations / spelling variants -> canonical company in the registry. Used to
-# rescue filename-based matches that fuzzy matching alone would miss.
+# rescue filename-based matches that strict fuzzy matching (token_sort, >=87)
+# intentionally no longer catches. Prefer adding aliases here over loosening
+# the matcher - loose matching misattributes feedback silently.
 company_aliases:
   "RLE": "Rail Logistics Europe"
   "Guterbahnen": "DIE GÜTERBAHNEN"
@@ -89,6 +91,44 @@ company_aliases:
   "CCW": "CCW - Captrain Cargo West"
   "UIC": "ECCO (UIC)"
   "ASTOC": "Tågföretagen - ASTOC"
+  "SBB Cargo": "SBB Cargo International"
+  "SBB Passenger": "SBB Passenger Trasport"
+  "METRANS Rail": "METRANS"
+  "CDCZ": "Ceske drahy"
+  "CD Cargo": "Ceske drahy"
+  "Rail Cargo Hungary": "Rail Cargo Hungaria"
+  "PKP Cargo": "PKP Cargo S.A. in restructuring"
+  "Tagforetagen": "Tågföretagen - ASTOC"
+  "FlixTrain": "FlixTrain"
+
+# Section answers that carry no content. Items whose text (after trimming and
+# lower-casing) equals one of these are skipped and counted in the report.
+placeholder_answers:
+  - "-"
+  - "--"
+  - "–"
+  - "—"
+  - "/"
+  - "."
+  - "n/a"
+  - "na"
+  - "none"
+  - "no"
+  - "yes"
+  - "vacat"
+  - "no comment"
+  - "no comments"
+  - "no comments yet"
+  - "no remarks"
+  - "nothing"
+
+# Strings that identify an RNE-published copy of the Guidelines document itself
+# (letterhead address). When a feedback file is such a copy, its BODY text is the
+# guideline text - not feedback - so body-derived items are suppressed and only
+# annotations / comments / tracked changes are extracted.
+guidelines_doc_markers:
+  - "Austria Campus 3"
+  - "Jakov-Lind"
 
 # Force the respondent for files under a given path fragment (the 'other feedbacks'
 # editorial / Joint-Office documents are not named after a stakeholder).

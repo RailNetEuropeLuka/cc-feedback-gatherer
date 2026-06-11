@@ -42,15 +42,21 @@ def registry_available() -> bool:
         return False
 
 
-@st.cache_resource(show_spinner="Loading engine…")
 def get_engine(with_registry: bool):
-    """Build the engine once per session. Registry is optional so the app still
-    works as a pure standalone demo if the source archive isn't present."""
-    try:
-        return Engine.create(with_registry=with_registry), None
-    except Exception as exc:
-        # fall back to a registry-less engine (ad-hoc respondents only)
-        return Engine.create(with_registry=False), str(exc)
+    """One engine PER BROWSER SESSION (st.session_state), never shared.
+
+    The engine's registry is mutable (uploads mint respondents into it), so a
+    process-wide cache (st.cache_resource) would leak company names from one
+    user's uploads into other users' sessions on a shared deployment.
+    """
+    key = f"engine_{with_registry}"
+    if key not in st.session_state:
+        try:
+            st.session_state[key] = (Engine.create(with_registry=with_registry), None)
+        except Exception as exc:
+            # fall back to a registry-less engine (ad-hoc respondents only)
+            st.session_state[key] = (Engine.create(with_registry=False), str(exc))
+    return st.session_state[key]
 
 
 def _conf_emoji(c: str) -> str:

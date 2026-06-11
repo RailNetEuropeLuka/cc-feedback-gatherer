@@ -51,11 +51,19 @@ def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
     # ---- (1) MS Form notification: parse "- Label: text" bullets ----------
     bullets = _parse_bullets(body)
     if bullets and ("submitting" in body.lower() or len(bullets) >= 3):
+        # The notification is sent BY the form system (e.g. "RNE Mailbox"), so the
+        # sender identifies the transport, not the respondent. Clear those hints -
+        # otherwise the first minted respondent's mailbox address would
+        # email-match every later notification to the same (wrong) company.
+        # Identity must come from the filename or the body instead.
+        ps.company_hint = None
+        ps.email_hint = None
         for label, text in bullets:
             if text.strip():
                 ps.items.append(RawItem(section_raw=label.strip(), considerations=text.strip(),
                                         raw_text=f"- {label.strip()}: {text.strip()}"))
-        ps.notes.append("MS Form confirmation e-mail (section-keyed body).")
+        ps.notes.append("MS Form confirmation e-mail (section-keyed body); "
+                        "respondent identified from the filename.")
         return [ps]
 
     # ---- (2) cover mail ---------------------------------------------------

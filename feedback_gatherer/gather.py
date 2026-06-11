@@ -88,6 +88,8 @@ def _report_md(result) -> str:
 
     _block(lines, "Files ingested", r["files_ingested"])
     _block(lines, "Endorsements (same as FTE)", r["endorsements"])
+    lines.append(f"## Placeholder answers skipped: {r.get('placeholders_skipped', 0)}")
+    lines.append("")
     _block(lines, "Test rows skipped", r["test_rows_skipped"])
     _block(lines, "Files skipped (dedup/ignored/channel off)", r["files_skipped"])
     _block(lines, "Errors", r["errors"])

@@ -26,9 +26,10 @@ def slugify(text: str) -> str:
 def _norm_company(name: str) -> str:
     name = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode()
     name = name.lower()
-    # drop common suffixes / noise that hurt matching
-    name = re.sub(r"\b(s\.?a\.?|a\.?g\.?|n\.?v\.?|gmbh|ab|in restructuring|international|cargo|nv)\b",
-                  " ", name)
+    # Drop only legal-form suffixes. Never strip distinguishing words like
+    # "cargo"/"passenger"/"international" - removing them once collapsed
+    # "SBB Passenger" and "SBB Cargo International" into the same name.
+    name = re.sub(r"\b(s\.?a\.?|a\.?g\.?|n\.?v\.?|gmbh|ab|in restructuring)\b", " ", name)
     name = re.sub(r"[^a-z0-9 ]+", " ", name)
     return re.sub(r"\s+", " ", name).strip()
 
@@ -106,18 +107,23 @@ class Registry:
 
     # --------------------------------------------------------------- resolve
     def resolve(self, company: str | None = None, email_blob: str | None = None,
-                min_score: int = 82) -> tuple[Respondent | None, str]:
-        """Return (respondent, how) where how in {email, exact, fuzzy, none}."""
+                min_score: int = 87) -> tuple[Respondent | None, str]:
+        """Return (respondent, how) where how in {email, exact, fuzzy, none}.
+
+        Fuzzy matching uses token_sort_ratio, NOT token_set_ratio: the latter
+        scores any token-subset as 100 ("DB" vs "DB Regio"), which silently
+        attributes feedback to the wrong company. Abbreviations and spelling
+        variants belong in config company_aliases, not in looser matching.
+        """
         email = _email_addr(email_blob or "")
         if email and email in self._by_email:
             return self.respondents[self._by_email[email]], "email"
-        # email domain -> company stem fallback
         norm = _norm_company(company or "")
         if norm and norm in self._by_norm_company:
             return self.respondents[self._by_norm_company[norm]], "exact"
         if norm:
             choices = list(self._by_norm_company.keys())
-            hit = process.extractOne(norm, choices, scorer=fuzz.token_set_ratio)
+            hit = process.extractOne(norm, choices, scorer=fuzz.token_sort_ratio)
             if hit and hit[1] >= min_score:
                 return self.respondents[self._by_norm_company[hit[0]]], "fuzzy"
         return None, "none"
