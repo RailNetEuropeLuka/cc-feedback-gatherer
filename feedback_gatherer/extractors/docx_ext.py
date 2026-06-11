@@ -19,7 +19,7 @@ from xml.etree import ElementTree as ET
 
 import docx
 
-from .base import ParsedSource, RawItem, topic_items, outline_items
+from .base import ParsedSource, RawItem
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+\.\w+")
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -192,18 +192,6 @@ def extract(data: bytes, filename: str, cfg: dict) -> list[ParsedSource]:
     # ---- (4) prose fallback (only when neither tables nor markup matched) --
     if not ps.items and not markup:
         _split_prose(full_text, ps)
-        if not ps.items:
-            outline = outline_items(full_text, cfg["sections"])
-            if outline:
-                ps.notes.append(f"Split on the document's own outline: {len(outline)} "
-                                "item(s) anchored to guideline chapters via the headings.")
-                ps.items.extend(outline)
-        if not ps.items:
-            topics = topic_items(full_text)
-            if topics:
-                ps.notes.append(f"No numbered sections; split on {len(topics)} "
-                                "topic heading(s) instead (canonical section unknown).")
-                ps.items.extend(topics)
 
     if markup:
         ps.notes.append(f"{len(markup)} comment(s)/tracked change(s) extracted "
