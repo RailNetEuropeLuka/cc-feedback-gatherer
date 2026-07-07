@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A tool ("Feedback Gatherer", in `feedback_gatherer/`) that extracts stakeholder feedback from heterogeneous file formats (`.msg`, `.docx`, `.pdf`, `.xlsx`) into one unified structure, built for the RNE 2025 Commercial Conditions Guidelines consultation. The repo also contains the source data archive `2025 CCs Guidelines review/` — **which is gitignored and must never be committed or pushed** (it holds real stakeholder names, e-mails, and confidential feedback). The public GitHub remote (`RailNetEuropeLuka/cc-feedback-gatherer`) and the Streamlit Cloud deployment contain only the tool plus synthetic samples in `feedback_gatherer/samples/`.
 
-This is stage 1 of a multi-stage project; stage 2 (semantic synthesis of the gathered feedback) is not yet built.
+Stage 2.1 adds a **local-only analysis dashboard** (`dashboard.py` over the headless `analysis.py`): semantic similarity (sentence-transformers MiniLM, TF-IDF fallback when the model is unavailable), theme clustering (agglomerative, cosine, default per-section @ 0.60 similarity threshold), consensus/agreement views. Scope: MS Form channel items only. Embeddings are disk-cached in `output/_cache/`. Later stage-2 steps (prose channels, mapping feedback → TF responses → v1.1→v1.2 changes) are not yet built.
 
 ## Commands
 
@@ -18,6 +18,10 @@ python feedback_gatherer/gather.py                  # options: --config <yaml> -
 
 # Web app (drag-and-drop extraction demo)
 streamlit run feedback_gatherer/app.py
+
+# Analysis dashboard (stage 2.1, LOCAL-ONLY; needs a prior gather.py run)
+pip install -r feedback_gatherer/requirements-analysis.txt   # torch etc. - kept OUT of root requirements.txt so the public deploy never installs them
+streamlit run feedback_gatherer/dashboard.py
 ```
 
 There is no test suite or linter. Verification is done by running the CLI and checking `feedback_gatherer/output/gather_report.md` (totals, needs-review list, dedup actions) against expectations — last known-good run: ~228 items / 29 respondents (placeholder answers like "vacat"/"-"/"no comments yet" are skipped and counted in the report).

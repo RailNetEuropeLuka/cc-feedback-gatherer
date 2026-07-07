@@ -24,7 +24,20 @@ Writes to `feedback_gatherer/output/`:
 - `gather_report.md` — run report: counts, dedup actions, endorsements,
   skipped test rows, and a **needs-review** list
 
-## 2. "Try-it" web app — upload and watch it extract
+## 2. Analysis dashboard (stage 2.1, local-only)
+
+```bash
+pip install -r feedback_gatherer/requirements-analysis.txt
+streamlit run feedback_gatherer/dashboard.py
+```
+
+Analyses the gathered MS Form feedback (run the batch CLI first) with local
+semantic similarity: overview stats, a "who else said this?" explorer, recurring
+theme clusters, semantic search, and a respondent agreement map. Runs entirely
+on your machine — the extra dependencies (torch) are deliberately kept out of
+the root `requirements.txt` so the public deployment is unaffected.
+
+## 3. "Try-it" web app — upload and watch it extract
 
 ```bash
 streamlit run feedback_gatherer/app.py

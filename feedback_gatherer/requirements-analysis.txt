@@ -1,0 +1,13 @@
+# Extra dependencies for the LOCAL analysis dashboard (stage 2.1).
+# Deliberately NOT merged into the root requirements.txt: the public Streamlit
+# Cloud deploy (app.py, extraction demo) must not install torch (~200MB+), and
+# the dashboard only makes sense locally where output/feedback.json exists.
+#
+#   pip install -r feedback_gatherer/requirements-analysis.txt
+#   streamlit run feedback_gatherer/dashboard.py
+-r requirements.txt
+sentence-transformers>=3.0   # all-MiniLM-L6-v2 embeddings (pulls torch)
+scikit-learn>=1.5            # clustering + TF-IDF fallback/labels
+pandas>=2.0
+numpy>=1.26
+plotly>=5.20                 # dashboard charts
