@@ -22,6 +22,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import analysis  # noqa: E402
+import response_export  # noqa: E402
 from analysis import SECTION_ORDER, item_text  # noqa: E402
 
 st.set_page_config(page_title="CC Feedback Analysis", page_icon="📊", layout="wide")
@@ -110,6 +111,13 @@ def get_consensus(mtime: float, backend_name: str) -> pd.DataFrame:
     return analysis.section_consensus(sim, df).set_index("section_ref")
 
 
+@st.cache_data(show_spinner="Building response workbook…")
+def get_workbook(mtime: float, backend_name: str, threshold: float, scope: str) -> bytes:
+    df = load_data(mtime)
+    clustered_, themes_ = get_clusters(mtime, backend_name, threshold, scope)
+    return response_export.build_response_workbook(df, clustered_, themes_)
+
+
 if not FEEDBACK.exists():
     st.error("No gathered feedback found.\n\nRun the stage-1 gatherer first:\n"
              "```\npython feedback_gatherer/gather.py\n```")
@@ -168,6 +176,16 @@ with tab_ch:
             "Mood": consensus_words(cons),
         })
     st.dataframe(pd.DataFrame(digest_rows), width="stretch", hide_index=True)
+
+    d1, d2 = st.columns([1, 2])
+    d1.download_button(
+        "⬇️ Download response workbook",
+        data=get_workbook(MTIME, backend.name, DEFAULT_THRESHOLD, DEFAULT_SCOPE),
+        file_name="CC_response_workbook.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    d2.caption("Excel for drafting the Task Force answers: one sheet per chapter, "
+               "one answer row per recurring point (grouped comments listed under "
+               "it) — answer a point once instead of comment by comment.")
 
     st.divider()
     sec = st.selectbox("Open a chapter", SECTIONS,

@@ -32,10 +32,16 @@ streamlit run feedback_gatherer/dashboard.py
 ```
 
 Analyses the gathered MS Form feedback (run the batch CLI first) with local
-semantic similarity: overview stats, a "who else said this?" explorer, recurring
-theme clusters, semantic search, and a respondent agreement map. Runs entirely
-on your machine — the extra dependencies (torch) are deliberately kept out of
-the root `requirements.txt` so the public deployment is unaffected.
+semantic similarity: chapter-by-chapter digest, recurring points, semantic
+search, and a respondent agreement map. Runs entirely on your machine — the
+extra dependencies (torch) are deliberately kept out of the root
+`requirements.txt` so the public deployment is unaffected.
+
+The **By chapter** tab offers a **response workbook** download
+(`CC_response_workbook.xlsx`): one sheet per chapter, one answer row per
+recurring point with the grouped comments listed underneath (single points get
+their own rows), plus TF Response / Status / Assignee / Notes columns — for
+drafting the Task Force answers once per point instead of comment by comment.
 
 ## 3. "Try-it" web app — upload and watch it extract
 
