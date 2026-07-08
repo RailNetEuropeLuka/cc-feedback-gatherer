@@ -281,25 +281,42 @@ with tab_find:
 
 # ------------------------------------------------------------------ Who aligns
 with tab_align:
-    st.markdown("**Which organisations say similar things overall?** Darker = their "
-                "comments overlap more. Useful for spotting coordinated positions "
+    st.markdown("**Which organisations say similar things?** Darker = their comments "
+                "overlap more. Useful for spotting coordinated positions "
                 "(e.g. respondents following the same association line).")
-    rs = analysis.respondent_similarity(sim, df)
-    fig = go.Figure(go.Heatmap(
-        z=rs.values, x=rs.columns, y=rs.index,
-        colorscale=[[i / (len(SEQ_RAMP) - 1), c] for i, c in enumerate(SEQ_RAMP)],
-        zmin=0, zmax=1, xgap=2, ygap=2,
-        colorbar=dict(title="overlap", tickfont=dict(color=MUTED)),
-        hovertemplate="%{y} ↔ %{x}: %{z:.2f}<extra></extra>"))
-    st.plotly_chart(_style(fig, height=560), width="stretch")
+    scope_sec = st.selectbox(
+        "Compare organisations on…", ["All chapters combined"] + SECTIONS,
+        format_func=lambda s: s if s == "All chapters combined"
+        else f"chapter {s} — {TITLE_BY_SEC.get(s, '')}")
 
-    # the same insight in words, no chart-reading required
-    pairs = []
-    cols = list(rs.columns)
-    for i in range(len(cols)):
-        for j in range(i + 1, len(cols)):
-            pairs.append((rs.iloc[i, j], cols[i], cols[j]))
-    pairs.sort(reverse=True)
-    st.markdown("**Most aligned pairs:**")
-    for score, a, b in pairs[:5]:
-        st.markdown(f"- **{a}** ↔ **{b}** — {int(round(score * 100))}% overlap")
+    if scope_sec == "All chapters combined":
+        a_df, a_sim = df, sim
+    else:
+        pos = np.where((df["section_ref"] == scope_sec).to_numpy())[0]
+        a_df = df.iloc[pos].reset_index(drop=True)
+        a_sim = sim[np.ix_(pos, pos)]
+
+    if a_df["respondent_id"].nunique() < 2:
+        st.info("Fewer than two organisations commented here — nothing to compare.")
+    else:
+        rs = analysis.respondent_similarity(a_sim, a_df)
+        fig = go.Figure(go.Heatmap(
+            z=rs.values, x=rs.columns, y=rs.index,
+            colorscale=[[i / (len(SEQ_RAMP) - 1), c] for i, c in enumerate(SEQ_RAMP)],
+            zmin=0, zmax=1, xgap=2, ygap=2,
+            colorbar=dict(title="overlap", tickfont=dict(color=MUTED)),
+            hovertemplate="%{y} ↔ %{x}: %{z:.2f}<extra></extra>"))
+        st.plotly_chart(_style(fig, height=max(380, 38 * len(rs))), width="stretch")
+
+        # the same insight in words, no chart-reading required
+        pairs = []
+        cols = list(rs.columns)
+        for i in range(len(cols)):
+            for j in range(i + 1, len(cols)):
+                pairs.append((rs.iloc[i, j], cols[i], cols[j]))
+        pairs.sort(reverse=True)
+        where = ("across all chapters" if scope_sec == "All chapters combined"
+                 else f"on chapter {scope_sec}")
+        st.markdown(f"**Most aligned pairs {where}:**")
+        for score, a, b in pairs[:5]:
+            st.markdown(f"- **{a}** ↔ **{b}** — {int(round(score * 100))}% overlap")
